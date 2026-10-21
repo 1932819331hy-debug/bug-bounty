@@ -1,0 +1,54 @@
+name: Validate PR 13402 exact candidate
+on:
+  push:
+    branches:
+      - ci/validate-13402-d1d0064
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-13402-d1d0064
+  cancel-in-progress: false
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: d1d006459cc26e7235fb074e07cf844256d05792
+          persist-credentials: false
+      - name: Verify candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = d1d006459cc26e7235fb074e07cf844256d05792
+          test "$(git rev-parse 'HEAD^{tree}')" = 734832ef391f878075be89040c00678c8af05b95
+          git rev-parse HEAD 'HEAD^{tree}'
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install API dependencies without lifecycle scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          npm ci --workspace apps/api --ignore-scripts --no-audit --no-fund
+      - name: Run actual root test command
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+      - name: Verify tracked source remains unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = d1d006459cc26e7235fb074e07cf844256d05792
+          test "$(git rev-parse 'HEAD^{tree}')" = 734832ef391f878075be89040c00678c8af05b95
+          git diff --exit-code HEAD
